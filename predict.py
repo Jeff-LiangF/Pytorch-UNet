@@ -1,5 +1,6 @@
 import argparse
 import os
+import glob
 
 import numpy as np
 import torch
@@ -8,7 +9,9 @@ import torch.nn.functional as F
 from PIL import Image
 
 from unet import UNet
-from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks, dense_crf
+# from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks, dense_crf
+from utils import resize_and_crop, normalize, split_img_into_squares, hwc_to_chw, merge_masks
+
 from utils import plot_img_and_mask
 
 from torchvision import transforms
@@ -62,8 +65,8 @@ def predict_img(net,
 
     full_mask = merge_masks(left_mask_np, right_mask_np, img_width)
 
-    if use_dense_crf:
-        full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
+    # if use_dense_crf:
+    #     full_mask = dense_crf(np.array(full_img).astype(np.uint8), full_mask)
 
     return full_mask > out_threshold
 
@@ -75,7 +78,7 @@ def get_args():
                         metavar='FILE',
                         help="Specify the file in which is stored the model"
                              " (default : 'MODEL.pth')")
-    parser.add_argument('--input', '-i', metavar='INPUT', nargs='+',
+    parser.add_argument('--input', '-i', metavar='INPUT',
                         help='filenames of input images', required=True)
 
     parser.add_argument('--output', '-o', metavar='INPUT', nargs='+',
@@ -98,11 +101,15 @@ def get_args():
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
                         default=0.5)
+    parser.add_argument('--gpu_id', '-g', type=str,
+                        help="The GPU id to use",
+                        default='7')
 
     return parser.parse_args()
 
 def get_output_filenames(args):
-    in_files = args.input
+    in_files = glob.glob(args.input + '/*.jpg')
+
     out_files = []
 
     if not args.output:
@@ -115,15 +122,16 @@ def get_output_filenames(args):
     else:
         out_files = args.output
 
-    return out_files
+    return in_files, out_files
 
 def mask_to_image(mask):
     return Image.fromarray((mask * 255).astype(np.uint8))
 
 if __name__ == "__main__":
     args = get_args()
-    in_files = args.input
-    out_files = get_output_filenames(args)
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
+
+    in_files, out_files = get_output_filenames(args)
 
     net = UNet(n_channels=3, n_classes=1)
 
@@ -146,7 +154,7 @@ if __name__ == "__main__":
         img = Image.open(fn)
         if img.size[0] < img.size[1]:
             print("Error: image height larger than the width")
-
+        img = img.convert('RGB')
         mask = predict_img(net=net,
                            full_img=img,
                            scale_factor=args.scale,

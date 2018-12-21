@@ -13,6 +13,7 @@ from unet import UNet
 from utils import get_ids, split_ids, split_train_val, get_imgs_and_masks, batch
 
 def train_net(net,
+              data_dir,
               epochs=5,
               batch_size=1,
               lr=0.1,
@@ -21,8 +22,8 @@ def train_net(net,
               gpu=False,
               img_scale=0.5):
 
-    dir_img = 'data/train/'
-    dir_mask = 'data/train_masks/'
+    dir_img = os.path.join(data_dir, 'JPEGImages/')
+    dir_mask = os.path.join(data_dir, 'SegmentationClass/')
     dir_checkpoint = 'checkpoints/'
 
     ids = get_ids(dir_img)
@@ -93,6 +94,8 @@ def train_net(net,
             print('Validation Dice Coeff: {}'.format(val_dice))
 
         if save_cp:
+            if not os.path.exists(dir_checkpoint):
+                os.mkdir(dir_checkpoint)
             torch.save(net.state_dict(),
                        dir_checkpoint + 'CP{}.pth'.format(epoch + 1))
             print('Checkpoint {} saved !'.format(epoch + 1))
@@ -101,6 +104,7 @@ def train_net(net,
 
 def get_args():
     parser = OptionParser()
+    parser.add_option('-d', '--data_dir', dest='data_dir')
     parser.add_option('-e', '--epochs', dest='epochs', default=5, type='int',
                       help='number of epochs')
     parser.add_option('-b', '--batch-size', dest='batchsize', default=10,
@@ -113,12 +117,15 @@ def get_args():
                       default=False, help='load file model')
     parser.add_option('-s', '--scale', dest='scale', type='float',
                       default=0.5, help='downscaling factor of the images')
+    parser.add_option('-i', '--gpu_id', dest='gpu_id', type=str,
+                      default=7, help="The GPU id to use")
 
     (options, args) = parser.parse_args()
     return options
 
 if __name__ == '__main__':
     args = get_args()
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
 
     net = UNet(n_channels=3, n_classes=1)
 
@@ -132,6 +139,7 @@ if __name__ == '__main__':
 
     try:
         train_net(net=net,
+                  data_dir=args.data_dir,
                   epochs=args.epochs,
                   batch_size=args.batchsize,
                   lr=args.lr,

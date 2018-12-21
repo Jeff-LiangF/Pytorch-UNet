@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import cv2
 
 
 def get_square(img, pos):
@@ -30,6 +31,23 @@ def resize_and_crop(pilimg, scale=0.5, final_height=None):
     img = pilimg.resize((newW, newH))
     img = img.crop((0, diff // 2, newW, newH - diff // 2))
     return np.array(img, dtype=np.float32)
+
+def resize_and_crop_mask(npy_file, scale=0.5, final_height=None):
+    np_mask = np.load(npy_file).astype(np.float32)
+    h,w = np_mask.shape
+    newW = int(w * scale)
+    newH = int(h * scale)
+
+    if not final_height:
+        diff = 0
+    else:
+        diff = newH - final_height
+
+    mask = cv2.resize(np_mask, dsize=(newW, newH))
+    mask = mask[0:newW+1, diff // 2:newH - diff // 2 + 1]
+    # img = img.crop((0, diff // 2, newW, newH - diff // 2))
+    return mask
+    # return np.array(img, dtype=np.float32)
 
 def batch(iterable, batch_size):
     """Yields lists by batch"""

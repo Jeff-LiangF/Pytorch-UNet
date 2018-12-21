@@ -7,7 +7,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from .utils import resize_and_crop, get_square, normalize, hwc_to_chw
+from .utils import resize_and_crop, resize_and_crop_mask, get_square, normalize, hwc_to_chw
 
 
 def get_ids(dir):
@@ -26,6 +26,12 @@ def to_cropped_imgs(ids, dir, suffix, scale):
         im = resize_and_crop(Image.open(dir + id + suffix), scale=scale)
         yield get_square(im, pos)
 
+def to_cropped_masks(ids, dir, suffix, scale):
+    """From a list of tuples, returns the correct cropped img"""
+    for id, pos in ids:
+        im = resize_and_crop_mask(dir + id + suffix, scale=scale)
+        yield get_square(im, pos)
+
 def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
     """Return all the couples (img, mask)"""
 
@@ -35,7 +41,8 @@ def get_imgs_and_masks(ids, dir_img, dir_mask, scale):
     imgs_switched = map(hwc_to_chw, imgs)
     imgs_normalized = map(normalize, imgs_switched)
 
-    masks = to_cropped_imgs(ids, dir_mask, '_mask.gif', scale)
+    # masks = to_cropped_imgs(ids, dir_mask, '_mask.gif', scale)
+    masks = to_cropped_masks(ids, dir_mask, '.npy', scale)
 
     return zip(imgs_normalized, masks)
 
